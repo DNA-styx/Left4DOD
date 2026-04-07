@@ -690,11 +690,13 @@ public SetName(target, String:nametoset[64])
 		new String:name[64];
 		Format(name, sizeof(name), "%s", name_list[target]);
 
-		SetClientInfo(target, "name", name);
+		// [FIXED] SetClientInfo was removed from SourceMod. SetClientName is the modern equivalent.
+		SetClientName(target, name);
 	}
 	else
 	{
-		SetClientInfo(target, "name", nametoset);
+		// [FIXED] SetClientInfo was removed from SourceMod. SetClientName is the modern equivalent.
+		SetClientName(target, nametoset);
 	}
 }
 

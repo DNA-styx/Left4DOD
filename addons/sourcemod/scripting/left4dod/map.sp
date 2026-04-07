@@ -31,7 +31,8 @@
 
 public OnMapStart()
 {
-	Steam_SetGameDescription("Left4DoD");
+	// [DISABLED] SteamTools removed - see left4dod-versus.sp include comment.
+	//Steam_SetGameDescription("Left4DoD");
 
 	SetLightStyle(0,"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba");
 	SetRandomSeed(GetTime());
@@ -139,31 +140,29 @@ public OnMapStart()
 	decl String:datapath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, datapath, PLATFORM_MAX_PATH, "data/bot_%s.nav", g_szMapName);
 
-	if (!FileExists(datapath))
-	{
-		LogError("[L4DOD] %s not found", datapath);
-		LogError("[L4DOD] Disabling Mod");
-		LogError("[L4DOD] When you have added waypoints, reload the map");
-		LogError("[L4DOD] Switching on Setup Mode");
+	// [DISABLED] The original plugin used a per-map KeyValues nav file
+	// (addons/sourcemod/data/bot_<mapname>.nav) for two purposes:
+	//   1. Custom bot AI pathfinding waypoints (GetMapData) - replaced by NavBot entirely.
+	//   2. Parachute drop positions and zombie spawn positions (GetFlagData/GetSpawnPointsData).
+	//
+	// The file-existence check previously disabled the entire plugin if the nav file was
+	// missing. This is removed. The plugin now always enables on map load.
+	// GetFlagData() and GetSpawnPointsData() still run and will fail gracefully if no nav
+	// file is present, setting g_bSpawnData/g_bZSpawnData to false which greys out the
+	// parachute and zombie-teleport menu options. Create per-map nav files to restore
+	// those features without re-enabling the bot waypoint sections.
+	SetConVarInt(hL4DSetup, 0);
+	SetConVarInt(hL4DOn, 1);
 
-		SetConVarInt(hL4DSetup, 1);
-		SetConVarInt(hL4DOn, 0);
-		CreateTimer(2.0, RemoveAllBots, 0, TIMER_FLAG_NO_MAPCHANGE);
-	}
-	else
-	{
-		SetConVarInt(hL4DSetup, 0);
-		SetConVarInt(hL4DOn, 1);
-
-		//Load the waypoints for bots
-		if (!GetMapData())
-		{
-			LogToFileEx(g_szLogFileName,"[L4DOD] ** W A R N I N G **");
-			LogToFileEx(g_szLogFileName,"[L4DOD] Unable to load waypoints");
-			SetConVarInt(hL4DSetup, 1);
-			SetConVarInt(hL4DOn, 0);
-		}
-	}
+	// [DISABLED] GetMapData() loaded bot AI waypoints from the nav file.
+	// NavBot handles its own navigation mesh independently - this call is not needed.
+	//if (!GetMapData())
+	//{
+	//	LogToFileEx(g_szLogFileName,"[L4DOD] ** W A R N I N G **");
+	//	LogToFileEx(g_szLogFileName,"[L4DOD] Unable to load waypoints");
+	//	SetConVarInt(hL4DSetup, 1);
+	//	SetConVarInt(hL4DOn, 0);
+	//}
 
 	CreateTimer(1.1, SetUp, 0, TIMER_FLAG_NO_MAPCHANGE);
 

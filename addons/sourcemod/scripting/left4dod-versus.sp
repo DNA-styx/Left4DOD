@@ -42,13 +42,16 @@
 #include <sdkhooks>
 #include <clientprefs>
 #include <morecolors>
-#include <steamtools>
+// [DISABLED] SteamTools extension is no longer maintained and unavailable on modern SourceMod.
+// Steam group membership (g_IsMember) and game description features are removed.
+// All players will default to base-tier behaviour (g_IsMember = 0).
+//#include <steamtools>
 
 //See also line 879
 #undef REQUIRE_EXTENSIONS
 #include <dodhooks>
 
-#define PLUGIN_VERSION "5.4.300"
+#define PLUGIN_VERSION "5.5.7"
 
 #define DEBUG 0
 
@@ -143,14 +146,32 @@
 
 #define FIRE_SMALL_LOOP2  "ambient/fire/fire_small_loop2.wav"
 
+// [FIXED] These DMG_ constants are now defined in modern SourceMod includes.
+// Wrapped with #if !defined to prevent redefinition warnings.
+#if !defined DMG_GENERIC
 #define DMG_GENERIC			0
+#endif
+#if !defined DMG_CRUSH
 #define DMG_CRUSH			(1 << 0)
+#endif
+#if !defined DMG_SLASH
 #define DMG_SLASH			(1 << 2)
+#endif
+#if !defined DMG_BURN
 #define DMG_BURN			(1 << 3)
+#endif
+#if !defined DMG_FALL
 #define DMG_FALL			(1 << 5)
+#endif
+#if !defined DMG_ENERGYBEAM
 #define DMG_ENERGYBEAM 	(1 << 10)
+#endif
+#if !defined DMG_POISON
 #define DMG_POISON		(1 << 17)
+#endif
+#if !defined DMG_ACID
 #define DMG_ACID			(1 << 20)
+#endif
 
 #define FFADE_IN            0x0001        // Just here so we don't pass 0 into the function
 #define FFADE_OUT           0x0002        // Fade out (not in)
@@ -442,8 +463,9 @@ new g_WayPointSet[MAXPLAYERS+1];
 new g_WayPointCheck[MAXPLAYERS+1];
 new g_iAlliesKeys[15];
 new g_iAxisKeys[15];
-new String:g_szWayPointCreator[32];
-new String:g_szWayPointDate[16];
+// [DISABLED] Only used in GetMapData() which is commented out in waypoints.sp.
+//new String:g_szWayPointCreator[32];
+//new String:g_szWayPointDate[16];
 
 //Spawn points
 new Float:g_vecAlliesSpawnAngle[8][3];
@@ -698,9 +720,11 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	CreateConVar("left4dod", PLUGIN_VERSION, " Left4DoD Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	// [FIXED] FCVAR_SPONLY was removed from SourceMod 1.11+, stripped from flag list.
+	CreateConVar("left4dod", PLUGIN_VERSION, " Left4DoD Version", FCVAR_REPLICATED|FCVAR_NOTIFY);
 
-	Steam_SetGameDescription("Left4DoD");
+	// [DISABLED] SteamTools removed - see include comment above.
+	//Steam_SetGameDescription("Left4DoD");
 
 	hL4DOn    					= CreateConVar("l4dod_enabled", "1", " Turn on/off Left4DoD");
 	hL4DSetup 				= CreateConVar("l4dod_setup", "0", " Allows an Admin to set up waypoints");
@@ -818,7 +842,8 @@ public OnPluginStart()
 
 	LoadTranslations("common.phrases");
 
-	AddNormalSoundHook(NormalSHook:NormalSoundHook);
+	// [DISABLED] NormalSoundHook removed - see sound.sp for explanation.
+	//AddNormalSoundHook(NormalSHook:NormalSoundHook);
 
 	//Turn off notification for Cheats
 	//Most players never get on before the bots anyway, but it's a safeguard
@@ -847,7 +872,10 @@ public OnPluginStart()
 
 	if (hDatabase == INVALID_HANDLE)
 	{
-		SQL_TConnect(StartUpConnect, "l4dod");
+		// [DISABLED] Database connection removed. The store system runs in-session only;
+		// player money and stats will not persist between map changes or reconnects.
+		// Re-enable and configure "l4dod" in databases.cfg to restore persistence.
+		//SQL_TConnect(StartUpConnect, "l4dod");
 	}
 
 	//################################################################################################EMERGENCY RESPAWN PLAY ROUTINE
@@ -879,65 +907,71 @@ public OnConfigsExecuted()
 	//Connect to Stats Database
 	if (hDatabase == INVALID_HANDLE)
 	{
-		SQL_TConnect(DBConnect, "l4dod");
+		// [DISABLED] Database connection removed - see OnPluginStart comment.
+		//SQL_TConnect(DBConnect, "l4dod");
 	}
 }
 
-public StartUpConnect(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	if (hndl == INVALID_HANDLE)
-	{
-		SetFailState("Oops. Something went wrong somewhere. Report ERROR:x01 to Dog.");
-		return;
-	}
-
-	hDatabase = hndl;
-	LogToFileEx(g_szLogFileName, "  ");
-	LogToFileEx(g_szLogFileName, "=====================================================");
-	LogToFileEx(g_szLogFileName, "[L4DOD] LEFT4DOD SERVER STARTED");
-
-	new String:address[64], ip, String:port[16], String:ServerIp[16];
-
-	ip = GetConVarInt(FindConVar("hostip"));
-	Format(ServerIp, sizeof(ServerIp), "%i.%i.%i.%i", (ip >> 24) & 0x000000FF,(ip >> 16) & 0x000000FF,(ip >> 8) & 0x000000FF, ip & 0x000000FF);
-
-	GetConVarString(FindConVar("hostport"), port, sizeof(port));
-	Format(address, sizeof(address), "%s:%s", ServerIp, port);
-	LogToFileEx(g_szLogFileName,"[L4DOD] SERVER IP: %s", address);
-	LogToFileEx(g_szLogFileName, "=====================================================");
-
-	new String:query[1024];
-	Format(query, sizeof(query), "SELECT * FROM auth WHERE ip='%s';", address);
-	SQL_TQuery(hDatabase, CheckServer, query, _, DBPrio_High);
-}
-
-public CheckServer(Handle:owner, Handle:hQuery, const String:error[], any:client)
-{
-	if(hQuery != INVALID_HANDLE)
-	{
-		if(SQL_GetRowCount(hQuery) == 0)
-		{
-			//Auth error
-			SetFailState("Oops. Something went wrong somewhere. Report ERROR:x02 to Dog.");
-		}
-		else
-		{
-			PrintToServer("Connection to Left4DoD server successful.");
-		}
-		CloseHandle(hQuery);
-	}
-}
-
-public DBConnect(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	if (hndl == INVALID_HANDLE)
-	{
-		LogError("[L4DoD] Unable to connect to database");
-		return;
-	}
-
-	hDatabase = hndl;
-}
+// [DISABLED] StartUpConnect, CheckServer, and DBConnect are the original server
+// authentication and database initialisation callbacks. StartUpConnect queried an
+// external "auth" table to license the plugin to specific server IPs, and would call
+// SetFailState if the IP was not found. All three are disabled along with the database.
+//
+//public StartUpConnect(Handle:owner, Handle:hndl, const String:error[], any:data)
+//{
+//	if (hndl == INVALID_HANDLE)
+//	{
+//		SetFailState("Oops. Something went wrong somewhere. Report ERROR:x01 to Dog.");
+//		return;
+//	}
+//
+//	hDatabase = hndl;
+//	LogToFileEx(g_szLogFileName, "  ");
+//	LogToFileEx(g_szLogFileName, "=====================================================");
+//	LogToFileEx(g_szLogFileName, "[L4DOD] LEFT4DOD SERVER STARTED");
+//
+//	new String:address[64], ip, String:port[16], String:ServerIp[16];
+//
+//	ip = GetConVarInt(FindConVar("hostip"));
+//	Format(ServerIp, sizeof(ServerIp), "%i.%i.%i.%i", (ip >> 24) & 0x000000FF,(ip >> 16) & 0x000000FF,(ip >> 8) & 0x000000FF, ip & 0x000000FF);
+//
+//	GetConVarString(FindConVar("hostport"), port, sizeof(port));
+//	Format(address, sizeof(address), "%s:%s", ServerIp, port);
+//	LogToFileEx(g_szLogFileName,"[L4DOD] SERVER IP: %s", address);
+//	LogToFileEx(g_szLogFileName, "=====================================================");
+//
+//	new String:query[1024];
+//	Format(query, sizeof(query), "SELECT * FROM auth WHERE ip='%s';", address);
+//	SQL_TQuery(hDatabase, CheckServer, query, _, DBPrio_High);
+//}
+//
+//public CheckServer(Handle:owner, Handle:hQuery, const String:error[], any:client)
+//{
+//	if(hQuery != INVALID_HANDLE)
+//	{
+//		if(SQL_GetRowCount(hQuery) == 0)
+//		{
+//			//Auth error
+//			SetFailState("Oops. Something went wrong somewhere. Report ERROR:x02 to Dog.");
+//		}
+//		else
+//		{
+//			PrintToServer("Connection to Left4DoD server successful.");
+//		}
+//		CloseHandle(hQuery);
+//	}
+//}
+//
+//public DBConnect(Handle:owner, Handle:hndl, const String:error[], any:data)
+//{
+//	if (hndl == INVALID_HANDLE)
+//	{
+//		LogError("[L4DoD] Unable to connect to database");
+//		return;
+//	}
+//
+//	hDatabase = hndl;
+//}
 
 //Clean up
 public OnEventShutdown()
@@ -957,7 +991,8 @@ public OnEventShutdown()
 	UnhookEvent("dod_point_captured", FlagCapturedEvent);
 	UnhookEvent("player_disconnect", PlayerDisconnectEvent);
 
-	RemoveNormalSoundHook(NormalSoundHook);
+	// [DISABLED] NormalSoundHook removed - see sound.sp for explanation.
+	//RemoveNormalSoundHook(NormalSoundHook);
 }
 
 //####RESPAWN ROUTINE ##################################################################################################

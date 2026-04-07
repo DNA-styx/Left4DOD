@@ -148,98 +148,103 @@ bool:SetMapData(String:team[], any:key, Float:vector[3], any:setnumber, any:iTea
 	return true;
 }
 
-bool:GetMapData()
-{
-	new Handle:h_KV = CreateKeyValues("WayPoints");
-	new String:temp[5];
-	new String:setgroup[16], String:setkeys[16];
 
-	decl String:datapath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, datapath, PLATFORM_MAX_PATH, "data/bot_%s.nav", g_szMapName);
-	FileToKeyValues(h_KV, datapath);
+// [DISABLED] GetMapData loaded bot AI waypoints from the per-map nav file.
+// Its only caller in map.sp was removed when the nav file hard-disable was stripped.
+// NavBot handles its own navigation mesh independently.
+//bool:GetMapData()
+//{
+//	new Handle:h_KV = CreateKeyValues("WayPoints");
+//	new String:temp[5];
+//	new String:setgroup[16], String:setkeys[16];
+//
+//	decl String:datapath[PLATFORM_MAX_PATH];
+//	BuildPath(Path_SM, datapath, PLATFORM_MAX_PATH, "data/bot_%s.nav", g_szMapName);
+//	FileToKeyValues(h_KV, datapath);
+//
+//	for (new iTeam = 2; iTeam <= 3; iTeam++)
+//	{
+//		for (new i = 1; i <= 8; i++)
+//		{
+//			KvRewind(h_KV);
+//			///////////////////////////////////////////////////////////////// Get the number of waypoints
+//			if (!KvJumpToKey(h_KV, "data"))
+//			{
+//				CloseHandle(h_KV);
+//				LogToFileEx(g_szLogFileName,"[L4DOD] UNABLE TO LOAD NAVIGATION - MISSING KEYS");
+//				return false;
+//			}
+//			if (iTeam == ALLIES)
+//			{
+//				Format(setkeys, sizeof(setkeys), "allieskeys%i", i);
+//				g_iAlliesKeys[i] = KvGetNum(h_KV, setkeys, 0);
+//
+//				#if DEBUG
+//				LogToFileEx(g_szLogFileName,"[L4DOD] ALLIES SET %i LOADED with %i KEYS", i, g_iAlliesKeys[i]);
+//				#endif
+//			}
+//			else if (iTeam == AXIS)
+//			{
+//				Format(setkeys, sizeof(setkeys), "axiskeys%i", i);
+//				g_iAxisKeys[i] = KvGetNum(h_KV, setkeys, 0);
+//
+//				#if DEBUG
+//				LogToFileEx(g_szLogFileName,"[L4DOD] AXIS SET %i LOADED with %i KEYS", i, g_iAxisKeys[i]);
+//				#endif
+//			}
+//
+//			KvRewind(h_KV);
+//
+//			///////////////////////////////////////////////////////////////// Lookup Axis waypoints
+//			if (iTeam == ALLIES)
+//				Format(setgroup, sizeof(setgroup), "allies%i", i);
+//			else if (iTeam == AXIS)
+//				Format(setgroup, sizeof(setgroup), "axis%i", i);
+//
+//			if (!KvJumpToKey(h_KV, setgroup))
+//			{
+//				CloseHandle(h_KV);
+//				LogToFileEx(g_szLogFileName,"[L4DOD] UNABLE TO LOAD NAVIGATION - MISSING WAYPOINTS");
+//				return false;
+//			}
+//
+//			if (iTeam == ALLIES)
+//			{
+//				for (new keyvalue=1; keyvalue <= g_iAlliesKeys[i]; keyvalue++)
+//				{
+//					Format(temp, sizeof(temp), "%i", keyvalue);
+//					KvGetVector(h_KV, temp, g_vecAlliesWaypointSet[i][keyvalue]);
+//				}
+//			}
+//			else if (iTeam == AXIS)
+//			{
+//				for (new keyvalue=1; keyvalue <= g_iAxisKeys[i]; keyvalue++)
+//				{
+//					Format(temp, sizeof(temp), "%i", keyvalue);
+//					KvGetVector(h_KV, temp, g_vecAxisWaypointSet[i][keyvalue]);
+//				}
+//			}
+//		}
+//	}
+//
+//	///////////////////////////////////////////////////////////////// Lookup creator info
+//	KvRewind(h_KV);
+//
+//	if (KvJumpToKey(h_KV, "creator"))
+//	{
+//		KvGetString(h_KV, "name", g_szWayPointCreator, 32);
+//		KvGetString(h_KV, "date", g_szWayPointDate, 16);
+//	}
+//
+//	CloseHandle(h_KV);
+//
+//	SetConVarInt(hL4DSetup, 0);
+//	SetConVarInt(hL4DOn, 1);
+//
+//	#if DEBUG
+//		LogToFileEx(g_szLogFileName,"[L4DOD] MAP DATA LOADED SUCCESSFULLY");
+//	#endif
+//
+//	return true;
+//}
 
-	for (new iTeam = 2; iTeam <= 3; iTeam++)
-	{
-		for (new i = 1; i <= 8; i++)
-		{
-			KvRewind(h_KV);
-			///////////////////////////////////////////////////////////////// Get the number of waypoints
-			if (!KvJumpToKey(h_KV, "data"))
-			{
-				CloseHandle(h_KV);
-				LogToFileEx(g_szLogFileName,"[L4DOD] UNABLE TO LOAD NAVIGATION - MISSING KEYS");
-				return false;
-			}
-			if (iTeam == ALLIES)
-			{
-				Format(setkeys, sizeof(setkeys), "allieskeys%i", i);
-				g_iAlliesKeys[i] = KvGetNum(h_KV, setkeys, 0);
-
-				#if DEBUG
-				LogToFileEx(g_szLogFileName,"[L4DOD] ALLIES SET %i LOADED with %i KEYS", i, g_iAlliesKeys[i]);
-				#endif
-			}
-			else if (iTeam == AXIS)
-			{
-				Format(setkeys, sizeof(setkeys), "axiskeys%i", i);
-				g_iAxisKeys[i] = KvGetNum(h_KV, setkeys, 0);
-
-				#if DEBUG
-				LogToFileEx(g_szLogFileName,"[L4DOD] AXIS SET %i LOADED with %i KEYS", i, g_iAxisKeys[i]);
-				#endif
-			}
-
-			KvRewind(h_KV);
-
-			///////////////////////////////////////////////////////////////// Lookup Axis waypoints
-			if (iTeam == ALLIES)
-				Format(setgroup, sizeof(setgroup), "allies%i", i);
-			else if (iTeam == AXIS)
-				Format(setgroup, sizeof(setgroup), "axis%i", i);
-
-			if (!KvJumpToKey(h_KV, setgroup))
-			{
-				CloseHandle(h_KV);
-				LogToFileEx(g_szLogFileName,"[L4DOD] UNABLE TO LOAD NAVIGATION - MISSING WAYPOINTS");
-				return false;
-			}
-
-			if (iTeam == ALLIES)
-			{
-				for (new keyvalue=1; keyvalue <= g_iAlliesKeys[i]; keyvalue++)
-				{
-					Format(temp, sizeof(temp), "%i", keyvalue);
-					KvGetVector(h_KV, temp, g_vecAlliesWaypointSet[i][keyvalue]);
-				}
-			}
-			else if (iTeam == AXIS)
-			{
-				for (new keyvalue=1; keyvalue <= g_iAxisKeys[i]; keyvalue++)
-				{
-					Format(temp, sizeof(temp), "%i", keyvalue);
-					KvGetVector(h_KV, temp, g_vecAxisWaypointSet[i][keyvalue]);
-				}
-			}
-		}
-	}
-
-	///////////////////////////////////////////////////////////////// Lookup creator info
-	KvRewind(h_KV);
-
-	if (KvJumpToKey(h_KV, "creator"))
-	{
-		KvGetString(h_KV, "name", g_szWayPointCreator, 32);
-		KvGetString(h_KV, "date", g_szWayPointDate, 16);
-	}
-
-	CloseHandle(h_KV);
-
-	SetConVarInt(hL4DSetup, 0);
-	SetConVarInt(hL4DOn, 1);
-
-	#if DEBUG
-		LogToFileEx(g_szLogFileName,"[L4DOD] MAP DATA LOADED SUCCESSFULLY");
-	#endif
-
-	return true;
-}

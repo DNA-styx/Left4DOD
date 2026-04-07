@@ -159,13 +159,18 @@ PlaySound(any:bot, bool:isEntity)
 	}
 }
 
-public Action:NormalSoundHook(clients[64], &client_count, String:sample[PLATFORM_MAX_PATH], &entity, &channel, &Float:volume, &level, &pitch, &flags)
-{
-	if(strcmp(FIRE_SMALL_LOOP2, sample, false) == 0)
-		return Plugin_Stop;
-
-	return Plugin_Continue;
-}
+// [DISABLED] NormalSoundHook commented out. This hook only suppressed the
+// "fire_small_loop2" ambient sound. Every signature variation attempted
+// (old-style tags, new-style types, with/without public, with/without
+// speakerentity, with/without NormalSHook: cast) produces error 100 against
+// the SM 1.12 NormalSHook typedef. The fire sound loop will play normally.
+//public Action:NormalSoundHook(clients[MAXPLAYERS], &numClients, String:sample[PLATFORM_MAX_PATH], &entity, &channel, &Float:volume, &level, &pitch, &flags, &speakerentity)
+//{
+//	if(strcmp(FIRE_SMALL_LOOP2, sample, false) == 0)
+//		return Plugin_Stop;
+//
+//	return Plugin_Continue;
+//}
 
 public Action:AllowMakeNoise(Handle:timer, any:client)
 {

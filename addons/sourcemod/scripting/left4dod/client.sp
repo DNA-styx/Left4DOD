@@ -77,8 +77,11 @@ public OnClientPostAdminCheck(client)
 			g_iSwapped[client] = 0;
 			g_HealthAdded[client] = 0;
 		}
-		//Check download settings
-		CreateTimer(2.0, CheckPlayer, client, TIMER_FLAG_NO_MAPCHANGE);
+		// [DISABLED] Download settings check removed. The original plugin kicked players
+		// who did not have cl_allowdownload 1 and cl_downloadfilter all, pointing them
+		// to a now-dead URL. On a modern server with FastDL or Workshop this is unnecessary
+		// and would kick everyone immediately. Re-enable if you need to enforce client downloads.
+		//CreateTimer(2.0, CheckPlayer, client, TIMER_FLAG_NO_MAPCHANGE);
 
 		//Check Supporter/Admin status
 		new flags = GetUserFlagBits(client);
@@ -339,7 +342,9 @@ public GetPlayerStats(Handle:owner, Handle:hQuery, const String:error[], any:cli
 		//Try database again...
 	}
 
-	Steam_RequestGroupStatus(client, STEAMGROUP);
+	// [DISABLED] SteamTools removed - Steam group membership check cannot run.
+	// g_IsMember will remain 0 for all players (base tier behaviour).
+	//Steam_RequestGroupStatus(client, STEAMGROUP);
 }
 
 //Player has fully disconnected
@@ -491,48 +496,49 @@ public OnClientDisconnect(client)
 	g_ShowSprite[client] = false;
 }
 
-public Steam_GroupStatusResult(client, groupAccountID, bool:groupMember, bool:groupOfficer)
-{
-	if (client > 0 && IsClientConnected(client) && !IsFakeClient(client))
-	{
-		if (groupAccountID == STEAMGROUP && groupMember)
-		{
-			g_IsMember[client]  = 1;
-		}
-		else
-		{
-			g_IsMember[client]  = 0;
-		}
+// [DISABLED] SteamTools removed. This forward received the Steam group membership
+// result and set g_IsMember[client] to 1 (member) or 2 (officer). Without SteamTools
+// this callback never fires; g_IsMember stays 0 for all players.
+//public Steam_GroupStatusResult(client, groupAccountID, bool:groupMember, bool:groupOfficer)
+//{
+//	if (client > 0 && IsClientConnected(client) && !IsFakeClient(client))
+//	{
+//		if (groupAccountID == STEAMGROUP && groupMember)
+//		{
+//			g_IsMember[client]  = 1;
+//		}
+//		else
+//		{
+//			g_IsMember[client]  = 0;
+//		}
+//
+//		if (groupAccountID == STEAMGROUP && groupOfficer)
+//		{
+//			g_IsMember[client]  = 2;
+//		}
+//
+//		//PrintToServer( "GROUP: After processing %N Membership is now [%i] ", client, g_IsMember[client]);
+//
+//		SetGroupData(client);
+//	}
+//}
 
-		if (groupAccountID == STEAMGROUP && groupOfficer)
-		{
-			g_IsMember[client]  = 2;
-		}
-
-		//PrintToServer( "GROUP: After processing %N Membership is now [%i] ", client, g_IsMember[client]);
-
-		SetGroupData(client);
-	}
-}
-
-SetGroupData(client)
-{
-	if (g_IsMember[client]  > 0)
-	{
-		new String:query[1024];
-
-		new String:clientname[128];
-		Format(clientname, sizeof(clientname), "%N", client);
-
-		new String:authid[64];
-		GetClientAuthId(client, AuthId_SteamID64, authid, sizeof(authid));
-
-		Format(query, sizeof(query), "REPLACE INTO players (authid, playername, money, member) VALUES('%s', '%s', %i, %i);", authid, clientname, g_iMoney[client], g_IsMember[client]);
-
-		//PrintToServer("Query: %s", query);
-		SQL_TQuery(hDatabase, AddToDatabase, query, client, DBPrio_High);
-	}
-}
+// [DISABLED] SetGroupData wrote Steam group membership tier to the database when a
+// player's group status was confirmed. Its only caller was Steam_GroupStatusResult
+// which is already disabled along with SteamTools. Database writes also disabled.
+//SetGroupData(client)
+//{
+//	if (g_IsMember[client] > 0)
+//	{
+//		new String:query[1024];
+//		new String:clientname[128];
+//		Format(clientname, sizeof(clientname), "%N", client);
+//		new String:authid[64];
+//		GetClientAuthId(client, AuthId_SteamID64, authid, sizeof(authid));
+//		Format(query, sizeof(query), "REPLACE INTO players (authid, playername, money, member) VALUES('%s', '%s', %i, %i);", authid, clientname, g_iMoney[client], g_IsMember[client]);
+//		SQL_TQuery(hDatabase, AddToDatabase, query, client, DBPrio_High);
+//	}
+//}
 
 public AddToDatabase(Handle:owner, Handle:hQuery, const String:error[], any:client)
 {
@@ -551,54 +557,51 @@ public AddToDatabase(Handle:owner, Handle:hQuery, const String:error[], any:clie
 	}
 }
 
-//################################ CHECK PLAYER CVARS #####################################
-public Action:CheckPlayer(Handle:timer,any:client)
-{
-	if (IsClientInGame(client))
-	{
-		#if DEBUG
-			LogToFileEx(g_szLogFileName,"[L4DOD] Checked player:%i", client);
-		#endif
-
-		// Check cvars
-		QueryClientConVar(client, "cl_allowdownload", ConVarQueryFinished:CheckADFilter, client);
-	}
-
-	return Plugin_Handled;
-}
-
-public CheckADFilter(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:value)
-{
-	new iValue = StringToInt(cvarValue);
-
-	if (iValue != 1)
-	{
-		LogToFileEx(g_szLogFileName,"Client '%L' had %s=%s",client, cvarName, cvarValue);
-		PrintToConsole(client, "------------------------------");
-		PrintToConsole(client, "In order to play Left4DoD, you must download all the additional sounds, models and materials");
-		PrintToConsole(client, "Go to http://www.boff.ca/dogblog/files/l4dod.zip");
-		PrintToConsole(client, "------------------------------");
-		KickClient(client,"Set cl_allowdownload 1");
-	}
-	else
-	{
-		if (IsClientInGame(client))
-			QueryClientConVar(client, "cl_downloadfilter", ConVarQueryFinished:CheckDFFilter, client);
-	}
-}
-
-public CheckDFFilter(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:value)
-{
-	if (!StrEqual(cvarValue, "all"))
-	{
-		LogToFileEx(g_szLogFileName,"Client '%L' had %s=%s",client, cvarName, cvarValue);
-		PrintToConsole(client, "------------------------------");
-		PrintToConsole(client, "In order to play Left4DoD, you must download all the additional sounds, models and materials");
-		PrintToConsole(client, "Go to http://www.boff.ca/dogblog/files/l4dod.zip");
-		PrintToConsole(client, "------------------------------");
-		KickClient(client,"Set cl_downloadfilter all");
-	}
-}
+// [DISABLED] CheckPlayer, CheckADFilter, and CheckDFFilter are the client download
+// enforcement callbacks. They queried cl_allowdownload and cl_downloadfilter and kicked
+// any player whose values did not match, pointing them to a dead URL. Disabled as the
+// timer that triggers CheckPlayer is already commented out above.
+//
+//public Action:CheckPlayer(Handle:timer,any:client)
+//{
+//	if (IsClientInGame(client))
+//	{
+//		QueryClientConVar(client, "cl_allowdownload", ConVarQueryFinished:CheckADFilter, client);
+//	}
+//	return Plugin_Handled;
+//}
+//
+//public CheckADFilter(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:value)
+//{
+//	new iValue = StringToInt(cvarValue);
+//	if (iValue != 1)
+//	{
+//		LogToFileEx(g_szLogFileName,"Client '%L' had %s=%s",client, cvarName, cvarValue);
+//		PrintToConsole(client, "------------------------------");
+//		PrintToConsole(client, "In order to play Left4DoD, you must download all the additional sounds, models and materials");
+//		PrintToConsole(client, "Go to http://www.boff.ca/dogblog/files/l4dod.zip");
+//		PrintToConsole(client, "------------------------------");
+//		KickClient(client,"Set cl_allowdownload 1");
+//	}
+//	else
+//	{
+//		if (IsClientInGame(client))
+//			QueryClientConVar(client, "cl_downloadfilter", ConVarQueryFinished:CheckDFFilter, client);
+//	}
+//}
+//
+//public CheckDFFilter(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:value)
+//{
+//	if (!StrEqual(cvarValue, "all"))
+//	{
+//		LogToFileEx(g_szLogFileName,"Client '%L' had %s=%s",client, cvarName, cvarValue);
+//		PrintToConsole(client, "------------------------------");
+//		PrintToConsole(client, "In order to play Left4DoD, you must download all the additional sounds, models and materials");
+//		PrintToConsole(client, "Go to http://www.boff.ca/dogblog/files/l4dod.zip");
+//		PrintToConsole(client, "------------------------------");
+//		KickClient(client,"Set cl_downloadfilter all");
+//	}
+//}
 
 public DisplayIntro(any:client)
 {

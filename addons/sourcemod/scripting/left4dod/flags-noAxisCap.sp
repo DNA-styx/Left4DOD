@@ -310,7 +310,8 @@ public Action:FlagCapturedEvent(Handle:hEvent, const String:szName[], bool:bDont
 
 	for(new i = 0; i < strlen(szCappers); i++)
 	{
-		new client = szCappers{i};
+		// [FIXED] Curly brace character indexing {i} removed in modern SourcePawn. Use [i] instead.
+		new client = szCappers[i];
 
 		if (client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 		{
